@@ -86,7 +86,7 @@ WSGI_APPLICATION = 'orron.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql', 
-        'NAME': 'orron_1',
+        'NAME': 'orron',
         'USER': 'root',
         'PASSWORD': '',
         'HOST': 'localhost',   # Or an IP Address that your DB is hosted on
