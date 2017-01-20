@@ -9,7 +9,7 @@ from django.forms.models import model_to_dict
 
 from explorer.tests.factories import SimpleQueryFactory, QueryLogFactory
 from explorer.models import Query, QueryLog, MSG_FAILED_BLACKLIST
-from explorer.utils import user_can_see_query
+from explorer.views import user_can_see_query
 from explorer.app_settings import EXPLORER_TOKEN
 from mock import Mock, patch
 
@@ -124,12 +124,6 @@ class TestQueryDetailView(TestCase):
         self.assertTemplateUsed(resp, 'explorer/query.html')
         self.assertNotContains(resp, '6871')
 
-    def test_doesnt_render_results_if_show_is_none_on_post(self):
-        query = SimpleQueryFactory(sql='select 6870+1;')
-        resp = self.client.post(reverse("query_detail", kwargs={'query_id': query.id}) + '?show=0', {'sql': 'select 6870+2;'})
-        self.assertTemplateUsed(resp, 'explorer/query.html')
-        self.assertNotContains(resp, '6872')
-
     def test_admin_required(self):
         self.client.logout()
         query = SimpleQueryFactory()
@@ -158,33 +152,23 @@ class TestQueryDetailView(TestCase):
         self.assertTemplateUsed(resp, 'explorer/query.html')
         self.assertContains(resp, "124")
 
-    def test_token_auth(self):
-        self.client.logout()
-
-        query = SimpleQueryFactory(sql="select 123+1")
-
-        with self.settings(EXPLORER_TOKEN_AUTH_ENABLED=True):
-            resp = self.client.get(reverse("query_detail", kwargs={'query_id': query.id}) + '?token=%s' % EXPLORER_TOKEN)
-        self.assertTemplateUsed(resp, 'explorer/query.html')
-        self.assertContains(resp, "124")
-
     def test_user_query_views(self):
         request = Mock()
 
         request.user.is_anonymous = Mock(return_value=True)
         kwargs = {}
-        self.assertFalse(user_can_see_query(request, **kwargs))
+        self.assertFalse(user_can_see_query(request, kwargs))
 
         request.user.is_anonymous = Mock(return_value=True)
-        self.assertFalse(user_can_see_query(request, **kwargs))
+        self.assertFalse(user_can_see_query(request, kwargs))
 
         kwargs = {'query_id': 123}
         request.user.is_anonymous = Mock(return_value=False)
-        self.assertFalse(user_can_see_query(request, **kwargs))
+        self.assertFalse(user_can_see_query(request, kwargs))
 
         request.user.id = 99
         with self.settings(EXPLORER_USER_QUERY_VIEWS={99: [111, 123]}):
-            self.assertTrue(user_can_see_query(request, **kwargs))
+            self.assertTrue(user_can_see_query(request, kwargs))
 
     @patch('explorer.models.get_s3_connection')
     def test_query_snapshot_renders(self, mocked_conn):
@@ -217,11 +201,6 @@ class TestQueryDetailView(TestCase):
 
         # Feels fragile, but nor sure how else to access the called-with params of .execute
         self.assertEqual(conn.cursor.mock_calls[1][1][0], "select 1;")
-
-    def test_fullscreen(self):
-        query = SimpleQueryFactory(sql="select 1;")
-        resp = self.client.get(reverse("query_detail", kwargs={'query_id': query.id}) + '?fullscreen=1')
-        self.assertTemplateUsed(resp, 'explorer/fullscreen.html')
 
 
 class TestDownloadView(TestCase):
@@ -297,7 +276,7 @@ class TestQueryPlayground(TestCase):
         self.assertContains(resp, '3401')
 
     def test_playground_doesnt_render_with_posted_sql_if_show_is_none(self):
-        resp = self.client.post(reverse("explorer_playground") + '?show=0', {'sql': 'select 1+3400;'})
+        resp = self.client.post(reverse("explorer_playground"), {'sql': 'select 1+3400;', 'show': ''})
         self.assertTemplateUsed(resp, 'explorer/play.html')
         self.assertNotContains(resp, '3401')
 
@@ -325,11 +304,6 @@ class TestQueryPlayground(TestCase):
         resp = self.client.post(reverse("explorer_playground"), {'sql': "select 'delete'"})
         self.assertTemplateUsed(resp, 'explorer/play.html')
         self.assertContains(resp, MSG_FAILED_BLACKLIST % '')
-
-    def test_fullscreen(self):
-        query = SimpleQueryFactory(sql="")
-        resp = self.client.get('%s?query_id=%s&fullscreen=1' % (reverse("explorer_playground"), query.id))
-        self.assertTemplateUsed(resp, 'explorer/fullscreen.html')
 
 
 class TestCSVFromSQL(TestCase):

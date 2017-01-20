@@ -7,15 +7,8 @@ from django.core.urlresolvers import reverse
 from django.conf import settings
 
 from . import app_settings
-from explorer.utils import (
-    passes_blacklist,
-    swap_params,
-    extract_params,
-    shared_dict_update,
-    get_connection,
-    get_s3_connection,
-    get_params_for_url
-)
+from explorer.utils import (passes_blacklist, swap_params, extract_params, shared_dict_update, get_connection,
+                            get_s3_connection, get_params_for_url)
 
 MSG_FAILED_BLACKLIST = "Query failed the SQL blacklist: %s"
 
@@ -256,7 +249,8 @@ class ColumnSummary(object):
 
     @property
     def stats(self):
-        return {c.label: c.value for c in self._stats}
+        # dict comprehensions are not supported in Python 2.6, so do this instead
+        return dict((c.label, c.value) for c in self._stats)
 
     def __str__(self):
         return str(self._header)

@@ -2,6 +2,7 @@ import json
 from functools import wraps
 import re
 import six
+import django
 
 from django.core.urlresolvers import reverse_lazy
 from django.db import DatabaseError
@@ -9,12 +10,28 @@ from django.db.models import Count
 from django.forms.models import model_to_dict
 from django.http import HttpResponse
 from django.http.response import HttpResponseRedirect
-from django.shortcuts import get_object_or_404, render, render_to_response
+from django.shortcuts import render_to_response, get_object_or_404
+from django.template import RequestContext
+<<<<<<< HEAD
 from django.utils.decorators import method_decorator
 from django.views.decorators.http import require_POST, require_GET
+=======
+from django.views.generic.base import View
+>>>>>>> master
 from django.views.generic import ListView
 from django.views.generic.base import View
 from django.views.generic.edit import CreateView, DeleteView
+<<<<<<< HEAD
+=======
+from django.views.decorators.clickjacking import xframe_options_sameorigin
+from django.views.decorators.http import require_POST, require_GET
+from django.utils.decorators import method_decorator
+from django.core.urlresolvers import reverse_lazy
+from django.forms.models import model_to_dict
+from django.http import HttpResponse
+from django.db import DatabaseError
+from django.db.models import Count
+>>>>>>> master
 
 from explorer import app_settings
 from explorer.exporters import get_exporter_class
@@ -26,13 +43,16 @@ from explorer.utils import url_get_rows,\
     url_get_log_id,\
     schema_info,\
     url_get_params,\
-    safe_login_prompt,\
+    safe_admin_login_prompt,\
     user_can_see_query,\
     fmt_sql,\
     allowed_query_pks,\
     url_get_show
 
-from collections import Counter
+try:
+    from collections import Counter
+except:
+    from .counter import Counter
 
 
 def view_permission(f):
@@ -42,7 +62,7 @@ def view_permission(f):
                 and not user_can_see_query(request, kwargs)\
                 and not (app_settings.EXPLORER_TOKEN_AUTH_ENABLED()
                          and request.META.get('HTTP_X_API_TOKEN') == app_settings.EXPLORER_TOKEN):
-            return safe_login_prompt(request)
+            return safe_admin_login_prompt(request)
         return f(request, *args, **kwargs)
     return wrap
 
@@ -55,7 +75,7 @@ def view_permission_list(f):
     def wrap(request, *args, **kwargs):
         if not app_settings.EXPLORER_PERMISSION_VIEW(request.user)\
                 and not allowed_query_pks(request.user.id):
-            return safe_login_prompt(request)
+            return safe_admin_login_prompt(request)
         return f(request, *args, **kwargs)
     return wrap
 
@@ -64,7 +84,7 @@ def change_permission(f):
     @wraps(f)
     def wrap(request, *args, **kwargs):
         if not app_settings.EXPLORER_PERMISSION_CHANGE(request.user):
-            return safe_login_prompt(request)
+            return safe_admin_login_prompt(request)
         return f(request, *args, **kwargs)
     return wrap
 
@@ -82,7 +102,8 @@ class ExplorerContextMixin(object):
 
     def render_template(self, template, ctx):
         ctx.update(self.gen_ctx())
-        return render(self.request, template, ctx)
+        ctx = RequestContext(self.request, dict_=ctx)
+        return render_to_response(template, ctx)
 
 
 def _export(request, query, download=True):
@@ -111,9 +132,7 @@ def download_query(request, query_id):
 @require_POST
 def download_from_sql(request):
     sql = request.POST.get('sql')
-    query = Query(sql=sql, title='')
-    ql = query.log(request.user)
-    query.title = 'Playground - %s' % ql.id
+    query = Query(sql=sql, title="Playground")
     return _export(request, query)
 
 
@@ -135,6 +154,23 @@ def email_csv_query(request, query_id):
     return HttpResponse(status=403)
 
 
+<<<<<<< HEAD
+=======
+def _csv_response(request, query_id, stream=False, delim=None):
+    query = get_object_or_404(Query, pk=query_id)
+    query.params = url_get_params(request)
+    return build_stream_response(query, delim) if stream else build_download_response(query, delim)
+
+
+@change_permission
+@require_POST
+def download_csv_from_sql(request):
+    sql = request.POST.get('sql')
+    return build_download_response(Query(sql=sql, title="Playground", params=url_get_params(request)))
+
+
+@xframe_options_sameorigin
+>>>>>>> master
 @change_permission
 @require_GET
 def schema(request):
@@ -222,10 +258,7 @@ class ListQueryLogView(ExplorerContextMixin, ListView):
         return super(ListQueryLogView, self).dispatch(*args, **kwargs)
 
     def get_queryset(self):
-        kwargs = {'sql__isnull': False}
-        if url_get_query_id(self.request):
-            kwargs['query_id'] = url_get_query_id(self.request)
-        return QueryLog.objects.filter(**kwargs).all()
+        return QueryLog.objects.filter(sql__isnull=False).all()
 
     context_object_name = "recent_logs"
     model = QueryLog
@@ -284,7 +317,7 @@ class PlayQueryView(ExplorerContextMixin, View):
         return self.render_with_sql(request, query, run_query=run_query, error=error)
 
     def render(self, request):
-        return self.render_template('explorer/play.html', {'title': 'Playground'})
+        return self.render_template('explorer/play.html', RequestContext(request, {'title': 'Playground'}))
 
     def render_with_sql(self, request, query, run_query=True, error=None):
         return self.render_template('explorer/play.html', query_viewmodel(request, query, title="Playground"
@@ -333,24 +366,23 @@ def query_viewmodel(request, query, title=None, form=None, message=None, run_que
         except DatabaseError as e:
             error = str(e)
     has_valid_results = not error and res and run_query
-    ret = {
-        'tasks_enabled': app_settings.ENABLE_TASKS,
-        'params': query.available_params(),
-        'title': title,
-        'shared': query.shared,
-        'query': query,
-        'form': form,
-        'message': message,
-        'error': error,
-        'rows': rows,
-        'data': res.data[:rows] if has_valid_results else None,
-        'headers': res.headers if has_valid_results else None,
-        'total_rows': len(res.data) if has_valid_results else None,
-        'duration': res.duration if has_valid_results else None,
-        'has_stats': len([h for h in res.headers if h.summary]) if has_valid_results else False,
-        'dataUrl': reverse_lazy('stream_query', kwargs={'query_id': query.id}) if query.id else '',
-        'bucket': app_settings.S3_BUCKET,
-        'snapshots': query.snapshots if query.snapshot else [],
-        'ql_id': ql.id if ql else None
-    }
+    ret = RequestContext(request, {
+            'tasks_enabled': app_settings.ENABLE_TASKS,
+            'params': query.available_params(),
+            'title': title,
+            'shared': query.shared,
+            'query': query,
+            'form': form,
+            'message': message,
+            'error': error,
+            'rows': rows,
+            'data': res.data[:rows] if has_valid_results else None,
+            'headers': res.headers if has_valid_results else None,
+            'total_rows': len(res.data) if has_valid_results else None,
+            'duration': res.duration if has_valid_results else None,
+            'has_stats': len([h for h in res.headers if h.summary]) if has_valid_results else False,
+            'dataUrl': reverse_lazy('stream_query', kwargs={'query_id': query.id}) if query.id else '',
+            'bucket': app_settings.S3_BUCKET,
+            'snapshots': query.snapshots if query.snapshot else [],
+            'ql_id': ql.id if ql else None})
     return ret

@@ -23,6 +23,47 @@ def get_connection():
     return connections[app_settings.EXPLORER_CONNECTION_NAME] if app_settings.EXPLORER_CONNECTION_NAME else connection
 
 
+def schema_info():
+    """
+    Construct schema information via introspection of the django models in the database.
+
+    :return: Schema information of the following form, sorted by db_table_name.
+        [
+            ("package.name -> ModelClass", "db_table_name",
+                [
+                    ("db_column_name", "DjangoFieldType"),
+                    (...),
+                ]
+            )
+        ]
+
+    """
+
+    from django.apps import apps
+
+    ret = []
+
+    for label, app in apps.app_configs.items():
+        if app.name not in app_settings.EXPLORER_SCHEMA_EXCLUDE_APPS:
+            for model_name, model in apps.get_app_config(label).models.items():
+                friendly_model = "%s -> %s" % (app.name, model._meta.object_name)
+                ret.append((
+                              friendly_model,
+                              model._meta.db_table,
+                              [_format_field(f) for f in model._meta.fields]
+                          ))
+
+                # Do the same thing for many_to_many fields. These don't show up in the field list of the model
+                # because they are stored as separate "through" relations and have their own tables
+                ret += [(
+                           friendly_model,
+                           m2m.rel.through._meta.db_table,
+                           [_format_field(f) for f in m2m.rel.through._meta.fields]
+                        ) for m2m in model._meta.many_to_many]
+
+    return sorted(ret, key=lambda t: t[1])
+
+
 def _format_field(field):
     return field.get_attname_column()[1], field.get_internal_type()
 
@@ -118,10 +159,6 @@ def url_get_show(request):
     return bool(get_int_from_request(request, 'show', 1))
 
 
-def url_get_fullscreen(request):
-    return bool(get_int_from_request(request, 'fullscreen', 0))
-
-
 def url_get_params(request):
     return get_params_from_request(request)
 
@@ -130,7 +167,7 @@ def allowed_query_pks(user_id):
     return app_settings.EXPLORER_GET_USER_QUERY_VIEWS().get(user_id, [])
 
 
-def user_can_see_query(request, **kwargs):
+def user_can_see_query(request, kwargs):
     if not request.user.is_anonymous() and 'query_id' in kwargs:
         return int(kwargs['query_id']) in allowed_query_pks(request.user.id)
     return False
