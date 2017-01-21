@@ -138,7 +138,6 @@ def email_csv_query(request, query_id):
 @change_permission
 @require_GET
 def schema(request):
-    print schema_info()
     return render_to_response('explorer/schema.html', {'schema': schema_info()})
 
 

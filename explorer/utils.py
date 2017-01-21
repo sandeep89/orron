@@ -47,7 +47,7 @@ def schema_info():
 
     from django.apps import apps
 
-    ret = []
+    ret = {};
 
     # for label, app in apps.app_configs.items():
     #     if app.name not in app_settings.EXPLORER_SCHEMA_EXCLUDE_APPS:
@@ -68,10 +68,16 @@ def schema_info():
     #                        [_format_field(f) for f in m2m.rel.through._meta.fields]
     #                     ) for m2m in model._meta.many_to_many]
 
-    table_schema = "select Distinct(TABLE_NAME)  from information_schema.columns where TABLE_SCHEMA = '" + get_db_name() + "';";
+    table_schema = "select TABLE_NAME, COLUMN_NAME from information_schema.columns where TABLE_SCHEMA = '" + get_db_name() + "';";
     with connection.cursor() as cursor:
         cursor.execute(table_schema)
-        return cursor.fetchall()
+        for row in cursor.fetchall():
+            if row[0].encode('utf8') in ret:
+                ret[row[0].encode('utf8')] = ret[row[0].encode('utf8')]
+            else:
+                ret[row[0].encode('utf8')] = []
+            ret[row[0].encode('utf8')].append(row[1].encode('utf8'))
+        return ret
     # return sorted(ret, key=lambda t: t[1])
 
 
