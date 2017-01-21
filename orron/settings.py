@@ -86,7 +86,15 @@ WSGI_APPLICATION = 'orron.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql', 
-        'NAME': 'orron_1',
+        'NAME': 'orron',
+        'USER': 'root',
+        'PASSWORD': '',
+        'HOST': 'localhost',   # Or an IP Address that your DB is hosted on
+        'PORT': '3306',
+    },
+    'ray' :{
+        'ENGINE': 'django.db.backends.mysql', 
+        'NAME': 'orron',
         'USER': 'root',
         'PASSWORD': '',
         'HOST': 'localhost',   # Or an IP Address that your DB is hosted on
@@ -94,6 +102,7 @@ DATABASES = {
     }
 }
 
+EXPLORER_CONNECTION_NAME = 'ray'
 
 # Password validation
 # https://docs.djangoproject.com/en/1.10/ref/settings/#auth-password-validators
