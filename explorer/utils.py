@@ -1,6 +1,7 @@
 import functools
 import re
 from django.db import connections, connection
+from django.conf import settings
 
 from six import text_type
 
@@ -22,6 +23,11 @@ def passes_blacklist(sql):
 def get_connection():
     return connections[app_settings.EXPLORER_CONNECTION_NAME] if app_settings.EXPLORER_CONNECTION_NAME else connection
 
+def get_db_name():
+    if settings.EXPLORER_CONNECTION_NAME:
+        return settings.DATABASES[settings.EXPLORER_CONNECTION_NAME]['NAME']
+    else:
+        settings.DATABASES['default']['NAME']
 
 def schema_info():
     """
@@ -43,25 +49,30 @@ def schema_info():
 
     ret = []
 
-    for label, app in apps.app_configs.items():
-        if app.name not in app_settings.EXPLORER_SCHEMA_EXCLUDE_APPS:
-            for model_name, model in apps.get_app_config(label).models.items():
-                friendly_model = "%s -> %s" % (app.name, model._meta.object_name)
-                ret.append((
-                              friendly_model,
-                              model._meta.db_table,
-                              [_format_field(f) for f in model._meta.fields]
-                          ))
+    # for label, app in apps.app_configs.items():
+    #     if app.name not in app_settings.EXPLORER_SCHEMA_EXCLUDE_APPS:
+    #         for model_name, model in apps.get_app_config(label).models.items():
+    #             friendly_model = "%s -> %s" % (app.name, model._meta.object_name)
+    #             print (friendly_model,model._meta.db_table, [_format_field(f) for f in model._meta.fields])
+    #             ret.append((
+    #                           friendly_model,
+    #                           model._meta.db_table,
+    #                           [_format_field(f) for f in model._meta.fields]
+    #                       ))
 
-                # Do the same thing for many_to_many fields. These don't show up in the field list of the model
-                # because they are stored as separate "through" relations and have their own tables
-                ret += [(
-                           friendly_model,
-                           m2m.rel.through._meta.db_table,
-                           [_format_field(f) for f in m2m.rel.through._meta.fields]
-                        ) for m2m in model._meta.many_to_many]
+    #             # Do the same thing for many_to_many fields. These don't show up in the field list of the model
+    #             # because they are stored as separate "through" relations and have their own tables
+    #             ret += [(
+    #                        friendly_model,
+    #                        m2m.rel.through._meta.db_table,
+    #                        [_format_field(f) for f in m2m.rel.through._meta.fields]
+    #                     ) for m2m in model._meta.many_to_many]
 
-    return sorted(ret, key=lambda t: t[1])
+    table_schema = "select Distinct(TABLE_NAME)  from information_schema.columns where TABLE_SCHEMA = '" + get_db_name() + "';";
+    with connection.cursor() as cursor:
+        cursor.execute(table_schema)
+        return cursor.fetchall()
+    # return sorted(ret, key=lambda t: t[1])
 
 
 def _format_field(field):
