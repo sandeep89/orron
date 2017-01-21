@@ -327,6 +327,7 @@ def query_viewmodel(request, query, title=None, form=None, message=None, run_que
     rows = url_get_rows(request)
     res = None
     ql = None
+    url_param = url_get_params(request)
     if run_query and url_param:
         try:
             res, ql = query.execute_with_logging(request.user)

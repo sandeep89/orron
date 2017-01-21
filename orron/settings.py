@@ -25,7 +25,7 @@ SECRET_KEY = '5xbd%^8=qrq_j2l35=z1g$(m&-!cc5vjlk&i7wioy0g!i=3hg^'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['orron-foxriver.practodev.com', '127.0.0.1', 'localhost']
 
 
 # Application definition

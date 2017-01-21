@@ -8,8 +8,10 @@
       <li><a href="{% url "explorer_playground" %}">Playground</a></li>
     {% endif %}
     {% if query %}<li class="active"><a href="">Query Detail</a></li>{% endif %}
-    {%if request.user.is_superuser %}
+    {% if request.user.is_superuser %}
       <li><a href="{% url "explorer_logs" %}">Logs</a></li>
+    {% else %}
+      <li><a href="#">Request New Dashboard</a></li>
     {% endif %}
 {% endblock %}
 
