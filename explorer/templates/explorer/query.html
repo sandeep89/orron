@@ -8,7 +8,9 @@
       <li><a href="{% url "explorer_playground" %}">Playground</a></li>
     {% endif %}
     {% if query %}<li class="active"><a href="">Query Detail</a></li>{% endif %}
-    <li><a href="{% url "explorer_logs" %}">Logs</a></li>
+    {%if request.user.is_superuser %}
+      <li><a href="{% url "explorer_logs" %}">Logs</a></li>
+    {% endif %}
 {% endblock %}
 
 {% block sql_explorer_content %}
