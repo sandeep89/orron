@@ -17,7 +17,6 @@
                 <tr>
                     <th>Query</th>
                     <th>Last Run</th>
-                    <th class="text-center">CSV</th>
                 </tr>
             </thead>
             <tbody>
@@ -25,9 +24,6 @@
                 <tr>
                     <td><a href="{% url "query_detail" object.id %}">{{ object.title }}</a></td>
                     <td>{{ object.last_run_date|date:"SHORT_DATETIME_FORMAT" }}</td>
-                    <td class="text-center">
-                        <a href="{% url "download_query" object.id %}"><i class="glyphicon glyphicon-download"></i></a>
-                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -48,10 +44,6 @@
             <tr>
                 <th>Query</th>
                 <th>Created</th>
-                {% if tasks_enabled %}
-                  <th>Email</th>
-                {% endif %}
-                <th>CSV</th>
                 {% if can_change %}
                     <th>Play</th>
                     <th>Delete</th>
@@ -78,14 +70,6 @@
                         {% if object.created_by_user %}
                             by {{ object.created_by_user }}
                         {% endif %}
-                    </td>
-                    {% if tasks_enabled %}
-                      <td class="text-center">
-                          <a class="email-csv" data-id="{{ object.id }}" href="{% url "email_csv_query" object.id %}"><i class="glyphicon glyphicon-envelope"></i></a>
-                      </td>
-                    {% endif %}
-                    <td class="text-center">
-                        <a href="{% url "download_query" object.id %}"><i class="glyphicon glyphicon-download"></i></a>
                     </td>
                     {% if can_change %}
                         <td class="text-center">
